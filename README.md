@@ -1,56 +1,185 @@
-# **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+Furkan Çetin - 16/11/2020
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
+# Project #1: Finding Lane Lines on the Road
 
-Overview
----
+## WriteUp
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
-
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
-
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+This project aims to detect lane lines on the road by applying some filters to images. Being the first project of Udacity Self-Driving Car Engineer Nanodegree programme, it was so helpful and well prepared for us, students, to practice the course content. On the other hand, the project allowed me to practise and get used to coding in Python.
 
 
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
+<figure>
+ <img src="test_images_output/Output_solidWhiteRight.jpg" width="800" alt="Combined Image" />
+ <figcaption>
+ <p></p> 
+ <p style="text-align: center;"> One of the outputs of the code </p> 
+ </figcaption>
+</figure>
 
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
+When achieving this goal, OpenCV libraries are used along with other libraries like matplotlib and numpy. Thanks to the functions in those libraries, it's so easy and efficient to build an actual working code that can be used in real life applications. Here are the imported libraries:
 
 
-The Project
----
+```python
+#importing some useful packages
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
+import cv2
+import os
+```
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+After importing useful resources, the main body of the code includes file readings and application of filters. For the images, all the image files included in <test_images> folder are imported and displayed with detected lane lines.
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) if you haven't already.
 
-**Step 2:** Open the code in a Jupyter Notebook
+```python
+#Listing images 
+list_images_names = os.listdir("test_images/")
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out [Udacity's free course on Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111) to get started.
+for img_name in list_images_names:
+    img_input = cv2.imread(r'test_images/'+img_name)
+    img_output = process_image(img_input)
+    plt.imshow(img_output[...,::-1])
+    plt.show()
+    cv2.imwrite(r'test_images_output/Output_'+img_name, img_output)
+```
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+All of the required filtering functions are included in the function called <process_image(img_input)>. This function requires an image object as an input parameter and returns another image object same as the input image with detected lanes drawn on it with red color. Here is the pipeline implemented for the detection of lane lines:
 
-`> jupyter notebook`
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+1- GreyScale: Input image is converted from BGR color space to Grey scale to detect later on the brightness changes between pixels 
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+2- Blurring: To get better resuts, this blurring step is an optional to use before Canny algorithm (which makes blurring already at some level)
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+3- Canny algorithm: For edge detection and feature extraction, Canny is a great and commonly used tool. 
 
+4- Region Masking: To get better results and increase performance, this functions crops the images so that every pixel is not considered for further algorithms.
+
+5- Hough Transformation: Hough Transformation is used to convert huge pixel data (remained as a result of Canny Algorithm) into contour data made of lines which is simpler to work with.
+
+6- Detecting points: Here, remaining of line data is seperated according to being belong to right or left lane. We use a vertical line as a threshold and compare all points of lines according to that vertical line.
+
+7- Curve Fitting: At the end, a simple line is generated out of the many points data so that we achieve final, clean representative line for the actual lane lines on the road
+
+8- Final: The function returns an image that is combination of the input image with lane lines drawn on it
+
+
+
+```python
+def process_image(image_input):
+    # x coordinate of vertical line located at the center 
+    mid_vertical_x = 485
+    
+    # point list of the polygonal area on image where we want to apply our filters
+    region_coordinates =[[(110,540), (950,540), (550,330), (420,330)]]   
+
+    # Convert image into gray scale
+    image_grey = cv2.cvtColor(image_input,cv2.COLOR_RGB2GRAY)
+    
+    # Add images extra blurring
+    image_grey_blurred = cv2.GaussianBlur(image_grey,(5, 5),0)
+    
+    # Apply Canny algorithm for edge detection 
+    image_canny = cv2.Canny(image_grey_blurred, 40, 100)
+
+    # Crop the images with polygonal region
+    mask = np.zeros_like(image_canny)    
+    vertices = np.array(region_coordinates, dtype=np.int32)
+    cv2.fillPoly(mask, vertices, 255)
+    image_masked_edges = cv2.bitwise_and(image_canny, mask)
+
+    # Apply Hough Transformations
+    lines = cv2.HoughLinesP(image_masked_edges, 2, (np.pi)/180, 15, np.array([]),40, 20)
+  
+    # Draw final lines onto the image
+    xLeft  = []
+    yLeft = []
+    xRight  = []
+    yRight = []  
+    
+    
+    for line in lines:
+        for x1,y1,x2,y2 in line:
+            # check for the FIRST point of HoughLines list 
+            if (x1 < mid_vertical_x): # that means the point is on the LEFT lane
+                xLeft.append(x1)
+                yLeft.append(y1)
+            else:                     # that means the point is on the RIGHT lane
+                xRight.append(x1)
+                yRight.append(y1)
+                    
+            # check for the SECOND point of HoughLines list       
+            if (x2 < mid_vertical_x): # that means the point is on the LEFT lane
+                xLeft.append(x2)
+                yLeft.append(y2)
+            else:                     # that means the point is on the RIGHT lane
+                xRight.append(x2)
+                yRight.append(y2)
+
+    
+    # Find average of all the points on both lanes and fit a line onto them
+    blank_canvas = np.zeros(image_input.shape, np.uint8)
+
+    [slope, intercept] = np.polyfit(xLeft, yLeft, 1)
+    startY = 330
+    endY = 540
+    startX = int( (startY - intercept) / slope)
+    endX = int((endY - intercept) / slope)
+    cv2.line(blank_canvas,(startX,startY),(endX,endY),(0, 0, 255) ,11) # Red Line for LEFT Lane  [(B,G,R) standart for OpenCV]
+    
+    [slope, intercept] = np.polyfit(xRight, yRight, 1)
+    startY = 330
+    endY = 540
+    startX = int( (startY - intercept) / slope)
+    endX = int((endY - intercept) / slope)
+    cv2.line(blank_canvas,(startX,startY),(endX,endY),(0, 0, 255) ,11)  # Red Line for RIGHT Lane  [(B,G,R) standart for OpenCV]
+    
+    image_result = cv2.addWeighted(image_input, 1.0, blank_canvas, 0.5, 0)
+    
+    # Return the final image that consists the input image with detected lane lines
+    return image_result
+```
+
+## Detection of Lane Lines on Video
+
+A video is simply a group of images played continually. Therefore, our function process_image is also helpful for detecting lane lines in images of videos. Here is the simple main body function which uses process_image function again, to detect lane lines and exports the input videos with the detected lines visible in red.
+
+
+
+```python
+# Import everything needed to edit/save/watch video clips
+from moviepy.editor import VideoFileClip
+from IPython.display import HTML
+
+white_output = 'test_videos_output/solidYellowLeft.mp4'
+clip1 = VideoFileClip("test_videos/solidYellowLeft.mp4")
+white_clip = clip1.fl_image(process_image)
+%time white_clip.write_videofile(white_output, audio=False)
+    
+white_output = 'test_videos_output/solidWhiteRight.mp4'
+clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4")
+white_clip = clip1.fl_image(process_image)
+%time white_clip.write_videofile(white_output, audio=False)
+```
+
+## Shortcomings of the code
+
+Firstly, this code is written for the specific pictures and the videos given in the project. Here are the parameters that could differ for different situations when using this code with other inputs or in real life applications:
+
+1- Region masking is applied according to a four-cornered-polygon which is chosen common for the input files and hard-coded into code.
+
+2- In real life applications, defined region masking could work on straight rodes. However, for inclinations on the road and on the curves, It should be modified dynamically for each cases.
+
+3- Instead of looking for white color on the screen pixesls, we used Canny algorithm which results much better. However, using those constant values in the code may not give satisfying results under different light conditions or diffrent road darkness changes.
+
+4- For the video challenge.mp4, the code doesn't work well. It needs different parameters for region mask and filtering algorithms. For the curves, shadows on the road and various road darkness levels, code could be written to be more adaptive to the changes. Also, extra filtering (like Kalman filters) can be used for better results. 
+
+5- Memory performance is not optimized
+
+## Improvements 
+
+1- In some cases, lane lines may not be so visible to be identified by the algorithms maybe for momentarily. In those cases, algorithm could be improved to be more robust
+
+2- To detect future curves when driving forward, another interesting approach could be using 2 different region masking and detecting lane lines for the area close to the car and also for the horizon (far to the car). Therefore car could be driven according to the closer lane lines but also could understand the next change on the road wheather its a curved or straight road.
+
+3- For curvatures, polygon fitting function may be modified for fitting 3rd order polygon to the point data after Hough Transformations
+
+4- After Hough Transformations, for each line, both points are considered to find final line for lanes. For performance improvements, taking only one of the points ( (x1,y1) or (x2,y2) ) can give very similar results
